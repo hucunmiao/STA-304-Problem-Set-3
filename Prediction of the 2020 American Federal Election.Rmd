@@ -1,0 +1,145 @@
+---
+title: "Prediction of the 2020 American Federal Election"
+author: "CHENGYUE XUE 1004761484
+         CUNMIAO HU 1004739688"
+date: "2020.11.2"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+
+survey_data <- read_csv("survey_data.csv")
+
+
+census_data <- read_csv("census_data.csv")
+
+
+```
+
+
+
+# Model
+
+In this assignment, we are trying to use a logistic regression model to predict the popular vote outcome of the 2020 American federal election. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary response variable. Voters have to make a choice between two candidates, Joe Biden and Donald Trump, so their willingness is not a numerical number. We use the mutate function to change their choice into numerical numbers, 1 and 0. Thus, we will be able to use a logistic regression model to predict the result.  We will calculate the proportion of voters who will vote for Donald Trump, the proportion of voters who will vote for Joe Biden and the proportion of voters who are not sure or don't know. We will compare those three result and get our prediction.  In this case, we choose age, gender and race ethnicity as predictor variables to predict the portion of voters who will vote Donald Trump instead of Joe Biden. Different ages of votes will have different preferences about the next president. Similarly, races of votes are an important factor that will affect the result of election. Thus, we choose them as predictor variables. We used R studio cloud to run this model. 
+
+
+
+## Model Specifics
+
+We will be using a multiple variables logistic regression model to model the proportion of voters who will vote for Donald Trump.The model we are using is:
+
+
+$$ log(\frac{p}{1-p}) = \beta_0+\beta_1  x_{age} + \beta_2 x_{race-ethnicity} +\beta_3 x_{gender}+\epsilon$$
+
+Where $p$ represents the proportion of voters who will vote for Donald Trump. Similarly, $\beta_0$ represents the intercept of the model, and 
+
+Where p represents the probability of voting Trump. 
+$\beta_1$ coefficient represents change in log odds for every one unit increase in age of voters, remaining other variables constant. 
+$\beta_2$ coefficient represents for every additional unit increase in gender , we expect the log odds of being admitted to increase by 
+$\beta_3$ coefficient represents for every additional unit increase in race_ethnicicy, we expect the log odds of being to increase by one unit.
+We are also going to use post-stratification calculation to make the estimation more accurate. 
+
+```{r}
+
+model <- glm(vote_trump ~ age + gender + race_ethnicity,
+            data=survey_data, family="binomial")
+
+summary(model)
+```
+
+We can see age is 0.0087 which represents that as age increase, people more likely to vote for Trump.
+We can see gendermale is 0.4034 which represents that males are more likely to vote for Trump.
+
+## Post-Stratification 
+
+Posti-stratification is a common technique implemented to obtain more precise estimates of sample statistics in survey data. It adjusted the sample weight so that they sum to each.  Thus, we are also going to use it to make our estimation more accurate. Post-stratification is a statistical technique that forms strata of observations after the data has been collected.  We pick some variables or groups from the original data set and get our sample,  then divides the sample into post-strata, and computes a post-stratification weight for each group. For this project, we will use the post-stratification model to calculate the proportion of the proportion of voters who will vote for Donald Trump, the proportion of voters who will vote for Joe Biden and the proportion of voters who are not sure or don't know.  At the beginning, we select some variables from the general data set,such as region,sex, age, race, citizen, educd and labforce, to get the basic sample data. Then, we select post-strates from the sample and calculate the post-stratification for each group. 
+
+We choose the variable “age” because it would influence the outcome of the vote. Maybe as age increases, people are more likely to vote for Trump, while younger people tend to choose Biden. During the process of the “age” group, we do not consider people younger than 1 years old , older than 90 years old and young girls who are under 20 old because those people do not have voting rights.
+
+We choose variable “gender” because it is likely to affect the election result. We think that males are likely to vote Trump.
+
+We choose the variable “race_ethnicity” because this group also would have influence on the result of the vote. We consider different races of people would favour different candidates. 
+
+
+```{r}
+glimpse(census_data)
+glimpse(survey_data)
+census_data <- census_data %>% 
+  mutate(gender = ifelse(gender == "male", "Male","Female"))
+
+census_data$estimate <-
+  model %>%
+  predict(newdata = census_data, type = "response")
+glimpse(census_data)
+
+census_data %>% 
+  filter(age >= 18)%>%
+  mutate(alp_predict_prop = estimate*n) %>%
+  summarise(alp_predict = sum(alp_predict_prop)/sum(n))
+
+
+```
+
+
+# Results
+
+
+The formula of post-stratification is  $$\hat{y}^{PS}$$ we calculated is 0.4026. This means the estimation of the proportion of voters who choose to vote Donald Trump is 40.26%. This is based on the post-stratification calculation of the proportion of voters in favour of Donald Trump modelled by a logistic regression model with multiple variables by choosing the voters age, gender, race ethnicity as predictor variables. We created cells based on different ages, gender, and race ethnicity of voters. As I mentioned before, I used a logistic regression model to get the estimators  $$\hat{y}^j $$ of each group of voters. Then using the number of voters in that group times the estimator and sum those values together. Finally, dividing it by the total number of population to get the estimate $$\hat{y}^{PS}$$. 	
+
+We estimate that the proportion of voters in favour of voting for <Donald Trump> to be 0.4026. This is based off our post-stratification analysis of the proportion of voters in favour of <Donald Trump> modelled by a <post_stratification> model, which accounted for <age, gender, race_ethnicity>.
+
+
+# Discussion
+
+Summary:
+
+First of all, we cleaned the data set that was downloaded from the website.(Vote study group Org) We selected the variables(gender, age, race ethnicity)  that we want to use to predict the 2020 American Federal Election. Then we fitted these variables into a logistic regression model. After this, we used post-stratification calculation to calculate the  estimator $$\hat{y}^{PS}$$. Finally, we got the probability of the population who will vote for Donald Trump. When we were dealing with the data, we ignored the people who stated that “I am not sure/don’t know” and “I would not vote”. Therefore, the result shows that 40.26% of the population choose to vote for Trump. 
+
+
+Conclusion:
+
+Based on the estimated proportion of voters in voting for <Donald Trump> being 0.4026, we predict that <Joe Biden> will win the election. Although the rest proportion contain who vote for someone else, it only a very small fraction. The proportion voting for Donald Trump is not greater than 0.5, so we predict Joe Biden will win the election. To further confirm our prediction, we also calculate the proportion of voters in voting for Joe Biden, which is 0.55. Thus there is a larger probability that Joe Biden wins the election.
+
+
+## Weaknesses
+
+The weakness of this project is that we just pick three variables from the data set, which would not be quite accurate, because we cannot conclude a specific predicted vote outcome just according to those three variables. Adding more variables would enhance the accuracy of the prediction outcome. For instance, variables like the census region or primary party of voters will be more influential for the election result.  
+
+
+## Next Steps
+
+For the future steps of the analysis, we will pay close attention to the actual election results. Then, we will compare our prediction model with the actual outcome, and make an analysis. For example, during our prediction, we used variables “age”, “gender” and “race_ethnicity”. We predicted that as age increases, people are more likely to vote Trump, males are likely to vote Trump. To confirm our prediction, we will compare these three variables with the actual one. If the prediction does not match the actual results, maybe we need to change some other variables or change another technical model next time.
+
+
+
+# References
+```{r}
+survey_data_new <- survey_data %>% select(age,
+                                          employment,
+                                          vote_trump)
+model_all <- glm(vote_trump ~ age+employment+vote_trump, 
+            data=survey_data_new, family="binomial")
+summary(model_all)
+
+library(MASS)
+step.model <- stepAIC(model_all, direction = "both", 
+                      trace = FALSE)
+summary(step.model)
+```
+
+1.Li-Chun Zhang. A Note on Post-Stratification When Analyzing Binary Survey Data Subject to Nonresponse. In Journal of Official Statistics, Volume 15, No. 2 1999, pp 329-334.	
+https://www.voterstudygroup.org/publication/nationscape-data-set		
+
+2.Saishruthi Swaminathan. Logistic Regression — Detailed Overview. Mar15,2018. https://towardsdatascience.com/logistic-regression-detailed-overview-46c4da4303bc
+
+3.Richard Valliant. Post-Stratification: A Modeler's Perspective.20 Dec 2012. https://amstat.tandfonline.com/doi/abs/10.1080/01621459.1993.10476368
+
+4.Democracy Fund + UCLA Nationscape ‘Full Data Set'."ns20200625.dta". Sept 2020.https://www.voterstudygroup.org/publication/nationscape-data-set.
+
+5.American Community Surveys."usa_00003.dta".
+https://usa.ipums.org/usa/index.shtml.
